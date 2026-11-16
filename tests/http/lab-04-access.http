@@ -26,8 +26,62 @@ Content-Type: application/json
 Accept: application/problem+json
 {
   "userName": "alice",
-  "password": "#VictorianSecret2"
+  "password": "USED_TO_BE_A_PASSWORD"
 }
 
 ### перевірка після відновлення підключення
 GET http://localhost:5080/health
+
+### Bob cannot view Alice
+GET http://localhost:5080/api/incidents/20000000-0000-0000-0000-000000000003
+Accept: application/json
+Cookie: USED_TO_BE_A_TOKEN
+
+### Alice can view her own incident
+GET http://localhost:5080/api/incidents/20000000-0000-0000-0000-000000000003
+Accept: application/json
+Cookie: USED_TO_BE_A_TOKEN
+
+### XSS Incident
+GET http://localhost:5080/api/incidents/857e4d2e-57d9-4d15-857c-1e2ef8bba87e
+Accept: application/json
+
+
+### Incident without CSRF Token
+POST http://localhost:5080/api/incidents
+Content-Type: application/json
+Cookie: USED_TO_BE_A_TOKEN
+
+{
+  "title": "REG-CSRF-01 No Token",
+  "description": "CSRF regression test",
+  "severity": "Low",
+  "occurredAtUtc": "2026-11-11T10:00:00Z"
+}
+
+
+### Incident did not get created with no token
+GET http://localhost:5080/api/incidents/search?q=REG-CSRF-01%20No%20Token
+Accept: application/json
+
+### Alice CSRF Token
+GET http://localhost:5080/api/antiforgery/token
+Accept: application/json
+Cookie: USED_TO_BE_A_TOKEN
+
+### Positive CSRF Token scene
+POST http://localhost:5080/api/incidents
+Content-Type: application/json
+Cookie: USED_TO_BE_A_TOKEN
+X-CSRF-TOKEN: USED_TO_BE_A_TOKEN
+
+{
+  "title": "REG-CSRF-01 Valid Token",
+  "description": "Incident created with valid CSRF token",
+  "severity": "Low",
+  "occurredAtUtc": "2026-11-11T10:00:00Z"
+}
+
+### Checking an incident with token
+GET http://localhost:5080/api/incidents/search?q=REG-CSRF-01%20Valid%20Token
+Accept: application/json
