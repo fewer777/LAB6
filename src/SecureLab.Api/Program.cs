@@ -4,6 +4,7 @@ using Scalar.AspNetCore;
 using SecureLab.Api.Application.Incidents;
 using SecureLab.Api.Data;
 using SecureLab.Api.Presentation.Endpoints;
+using Microsoft.AspNetCore.Antiforgery;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -12,6 +13,17 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 });
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
+
+builder.Services.AddHsts(options =>
+{
+    options.ExcludedHosts.Clear();
+    options.MaxAge = TimeSpan.FromDays(30);
+});
+
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+});
 
 if (builder.Environment.IsDevelopment())
 {
@@ -46,15 +58,26 @@ if (resetRequested)
     return;
 }
 
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers.XContentTypeOptions = "nosniff";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        return Task.CompletedTask;
+    });
+
+    await next(context);
+});
+
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
-app.Use(async (context, next) =>
+if (!app.Environment.IsDevelopment())
 {
-    context.Response.Headers.XContentTypeOptions = "nosniff";
-    context.Response.Headers.Append("Referrer-Policy", "no-referrer");
-    await next(context);
-});
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -71,6 +94,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseAntiforgery();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -84,6 +108,18 @@ app.MapGet("/health", async (SecureLabDbContext dbContext, CancellationToken can
     .WithName("GetHealth")
     .Produces(StatusCodes.Status200OK)
     .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+
+app.MapGet("/api/antiforgery/token", (HttpContext context, IAntiforgery antiforgery) =>
+{
+    var tokens = antiforgery.GetAndStoreTokens(context);
+
+    context.Response.Headers.CacheControl = "no-store";
+
+    return Results.Ok(new
+    {
+        requestToken = tokens.RequestToken
+    });
+}).RequireAuthorization();
 
 app.MapIncidentEndpoints();
 app.MapLab03Identity();

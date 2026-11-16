@@ -1,48 +1,87 @@
-@host = http://localhost:5080
-@aliceIncidentId = 20000000-0000-0000-0000-000000000001
+@baseUrl = http://localhost:5080
 
-### 1. Тест: Анонімний запит (без login)
-GET {{host}}/api/incidents/{{aliceIncidentId}}
+### РџРµСЂРµРІС–СЂРєР° Р°РЅРѕРЅС–РјРЅРѕРіРѕ РґРѕСЃС‚СѓРїСѓ РґРѕ С–РЅС†РёРґРµРЅС‚Сѓ Alice
+GET {{baseUrl}}/api/incidents/20000000-0000-0000-0000-000000000001
 Accept: application/json
 
-### 2. Login як Alice
-# @name loginAlice
-POST {{host}}/api/auth/login
-Content-Type: application/json
+### Lab06 вЂ” Production: РїРµСЂРµРІС–СЂРєР° РґРѕСЃС‚СѓРїРЅРѕСЃС‚С– OpenAPI
+GET http://localhost:5080/openapi/v1.json
+Accept: application/problem+json
 
+### Lab06 вЂ” Production: РїРµСЂРµРІС–СЂРєР° Scalar
+GET http://localhost:5080/scalar/v1
+Accept: text/html
+
+###  Production: РїРµСЂРµРІС–СЂРєР° РЅРµРєРѕСЂРµРєС‚РЅРѕРіРѕ status
+GET http://localhost:5080/api/incidents?status=InvalidStatusLab06
+Accept: application/problem+json
+
+###  Production: РЅРµС–СЃРЅСѓСЋС‡РёР№ С–РЅС†РёРґРµРЅС‚
+GET http://localhost:5080/api/incidents/99999999-9999-9999-9999-999999999999
+Accept: application/problem+json
+
+###  Production: РєРѕРЅС‚СЂРѕР»СЊРѕРІР°РЅР° РїРѕРјРёР»РєР° 500
+POST http://localhost:5080/api/auth/login
+Content-Type: application/json
+Accept: application/problem+json
 {
   "userName": "alice",
-  "password": "{{$processEnv SeedUsers__Password}}"
+  "password": "USED_TO_BE_A_PASSWORD"
 }
 
-### 3. Тест: Alice читає власний інцидент
-GET {{host}}/api/incidents/{{aliceIncidentId}}
+### РїРµСЂРµРІС–СЂРєР° РїС–СЃР»СЏ РІС–РґРЅРѕРІР»РµРЅРЅСЏ РїС–РґРєР»СЋС‡РµРЅРЅСЏ
+GET http://localhost:5080/health
+
+### Bob cannot view Alice
+GET http://localhost:5080/api/incidents/20000000-0000-0000-0000-000000000003
+Accept: application/json
+Cookie: USED_TO_BE_A_TOKEN
+
+### Alice can view her own incident
+GET http://localhost:5080/api/incidents/20000000-0000-0000-0000-000000000003
+Accept: application/json
+Cookie: USED_TO_BE_A_TOKEN
+
+### XSS Incident
+GET http://localhost:5080/api/incidents/857e4d2e-57d9-4d15-857c-1e2ef8bba87e
 Accept: application/json
 
-### 4. Login як Bob
-# @name loginBob
-POST {{host}}/api/auth/login
+
+### Incident without CSRF Token
+POST http://localhost:5080/api/incidents
 Content-Type: application/json
+Cookie: USED_TO_BE_A_TOKEN
 
 {
-  "userName": "bob",
-  "password": "{{$processEnv SeedUsers__Password}}"
+  "title": "REG-CSRF-01 No Token",
+  "description": "CSRF regression test",
+  "severity": "Low",
+  "occurredAtUtc": "2026-11-11T10:00:00Z"
 }
 
-### 5. Тест: Bob спробує прочитати чужий інцидент (Alice)
-GET {{host}}/api/incidents/{{aliceIncidentId}}
+
+### Incident did not get created with no token
+GET http://localhost:5080/api/incidents/search?q=REG-CSRF-01%20No%20Token
 Accept: application/json
 
-### 6. Login як Morgan (Analyst)
-# @name loginMorgan
-POST {{host}}/api/auth/login
+### Alice CSRF Token
+GET http://localhost:5080/api/antiforgery/token
+Accept: application/json
+Cookie: USED_TO_BE_A_TOKEN
+
+### Positive CSRF Token scene
+POST http://localhost:5080/api/incidents
 Content-Type: application/json
+Cookie: USED_TO_BE_A_TOKEN
+X-CSRF-TOKEN: USED_TO_BE_A_TOKEN
 
 {
-  "userName": "morgan",
-  "password": "{{$processEnv SeedUsers__Password}}"
+  "title": "REG-CSRF-01 Valid Token",
+  "description": "Incident created with valid CSRF token",
+  "severity": "Low",
+  "occurredAtUtc": "2026-11-11T10:00:00Z"
 }
 
-### 7. Тест: Morgan читає інцидент Alice (для аналізу)
-GET {{host}}/api/incidents/{{aliceIncidentId}}
+### Checking an incident with token
+GET http://localhost:5080/api/incidents/search?q=REG-CSRF-01%20Valid%20Token
 Accept: application/json

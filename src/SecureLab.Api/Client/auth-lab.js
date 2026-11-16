@@ -11,7 +11,18 @@ document.querySelector("#me").addEventListener("click", async () => {
   const response = await fetch("/api/me");
   result.textContent = `${response.status}: ${await response.text()}`;
 });
-document.querySelector("#logout").addEventListener("click", async () => {
-  const response = await fetch("/api/auth/logout", { method: "POST" });
-  result.textContent = `Logout: ${response.status}`;
+document.querySelector("#logout").addEventListener("click", async () =>
+{
+    const tokenResponse = await fetch("/api/antiforgery/token", {
+        credentials: "same-origin"
+    });
+    if (!tokenResponse.ok)
+    {
+        result.textContent = `CSRF token: ${tokenResponse.status}`;
+        return;
+    }
+    const { requestToken } = await tokenResponse.json();
+    const response = await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin", headers: { "X-CSRF-TOKEN": requestToken}
+    });
+    result.textContent = `Logout: ${response.status}`;
 });
