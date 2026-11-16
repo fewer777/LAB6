@@ -1,48 +1,33 @@
-@host = http://localhost:5080
-@aliceIncidentId = 20000000-0000-0000-0000-000000000001
+@baseUrl = http://localhost:5080
 
-### 1. Тест: Анонімний запит (без login)
-GET {{host}}/api/incidents/{{aliceIncidentId}}
+### РџРµСЂРµРІС–СЂРєР° Р°РЅРѕРЅС–РјРЅРѕРіРѕ РґРѕСЃС‚СѓРїСѓ РґРѕ С–РЅС†РёРґРµРЅС‚Сѓ Alice
+GET {{baseUrl}}/api/incidents/20000000-0000-0000-0000-000000000001
 Accept: application/json
 
-### 2. Login як Alice
-# @name loginAlice
-POST {{host}}/api/auth/login
-Content-Type: application/json
+### Lab06 вЂ” Production: РїРµСЂРµРІС–СЂРєР° РґРѕСЃС‚СѓРїРЅРѕСЃС‚С– OpenAPI
+GET http://localhost:5080/openapi/v1.json
+Accept: application/problem+json
 
+### Lab06 вЂ” Production: РїРµСЂРµРІС–СЂРєР° Scalar
+GET http://localhost:5080/scalar/v1
+Accept: text/html
+
+###  Production: РїРµСЂРµРІС–СЂРєР° РЅРµРєРѕСЂРµРєС‚РЅРѕРіРѕ status
+GET http://localhost:5080/api/incidents?status=InvalidStatusLab06
+Accept: application/problem+json
+
+###  Production: РЅРµС–СЃРЅСѓСЋС‡РёР№ С–РЅС†РёРґРµРЅС‚
+GET http://localhost:5080/api/incidents/99999999-9999-9999-9999-999999999999
+Accept: application/problem+json
+
+###  Production: РєРѕРЅС‚СЂРѕР»СЊРѕРІР°РЅР° РїРѕРјРёР»РєР° 500
+POST http://localhost:5080/api/auth/login
+Content-Type: application/json
+Accept: application/problem+json
 {
   "userName": "alice",
-  "password": "{{$processEnv SeedUsers__Password}}"
+  "password": "#VictorianSecret2"
 }
 
-### 3. Тест: Alice читає власний інцидент
-GET {{host}}/api/incidents/{{aliceIncidentId}}
-Accept: application/json
-
-### 4. Login як Bob
-# @name loginBob
-POST {{host}}/api/auth/login
-Content-Type: application/json
-
-{
-  "userName": "bob",
-  "password": "{{$processEnv SeedUsers__Password}}"
-}
-
-### 5. Тест: Bob спробує прочитати чужий інцидент (Alice)
-GET {{host}}/api/incidents/{{aliceIncidentId}}
-Accept: application/json
-
-### 6. Login як Morgan (Analyst)
-# @name loginMorgan
-POST {{host}}/api/auth/login
-Content-Type: application/json
-
-{
-  "userName": "morgan",
-  "password": "{{$processEnv SeedUsers__Password}}"
-}
-
-### 7. Тест: Morgan читає інцидент Alice (для аналізу)
-GET {{host}}/api/incidents/{{aliceIncidentId}}
-Accept: application/json
+### РїРµСЂРµРІС–СЂРєР° РїС–СЃР»СЏ РІС–РґРЅРѕРІР»РµРЅРЅСЏ РїС–РґРєР»СЋС‡РµРЅРЅСЏ
+GET http://localhost:5080/health

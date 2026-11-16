@@ -8,25 +8,47 @@ async function load() {
   current = await response.json();
   document.querySelector("#title").textContent = current.title;
   document.querySelector("#description").textContent = current.description;
-
   document.querySelector("#comments").replaceChildren();
   for (const comment of current.comments ?? []) {
-      const paragraph = document.createElement("p");
-      paragraph.textContent = comment.text;
-      document.querySelector("#comments").append(paragraph);
+    const paragraph = document.createElement("p");
+    paragraph.textContent = comment.text;
+    document.querySelector("#comments").append(paragraph);
   }
   document.querySelector("#edit").elements.description.value = current.description;
 }
 document.querySelector("#load").addEventListener("click", load);
 document.querySelector("#edit").addEventListener("submit", async event => {
-  event.preventDefault();
-  const response = await fetch("/api/incidents", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ title: event.currentTarget.elements.title.value, description: event.currentTarget.elements.description.value,
-      severity: "Low", occurredAtUtc: new Date().toISOString() }) });
-  status.textContent = `POST: ${response.status}`;
-  if (response.ok) {
-    const created = await response.json();
-    document.querySelector("#incident-id").value = created.id;
-    await load();
-  }
+    event.preventDefault();
+    const form = event.currentTarget;
+    const tokenResponse = await fetch("/api/antiforgery/token", {
+        credentials: "same-origin"
+    });
+    if (!tokenResponse.ok)
+    {
+        status.textContent = `CSRF token: ${tokenResponse.status}`;
+        return;
+    }
+    const { requestToken } = await tokenResponse.json();
+    const response = await fetch("/api/incidents",
+    {
+        method: "POST",
+        credentials: "same-origin",
+        headers:
+        {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": requestToken
+        },
+        body: JSON.stringify({
+            title: form.elements.title.value,
+            description: form.elements.description.value,
+            severity: "Low",
+            occurredAtUtc: new Date().toISOString()
+        })
+    });
+    status.textContent = `POST: ${response.status}`;
+    if (response.ok) {
+        const created = await response.json();
+        document.querySelector("#incident-id").value = created.id;
+        await load();
+    }
 });
